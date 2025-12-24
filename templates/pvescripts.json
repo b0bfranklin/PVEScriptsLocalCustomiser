@@ -1,0 +1,75 @@
+{
+  "$schema": "./pvescripts-schema.json",
+  "name": "Your Application Name",
+  "slug": "your-app-slug",
+  "categories": [14],
+  "date_created": "2024-12-24",
+  "type": "ct",
+  "updateable": true,
+  "privileged": false,
+  "interface_port": 3000,
+  "documentation": "https://github.com/your-username/your-repo#readme",
+  "website": "https://your-app-website.com",
+  "logo": "https://cdn.jsdelivr.net/gh/selfhst/icons/webp/github.webp",
+  "config_path": "cat /opt/your-app/.env",
+  "description": "A brief description of your application and what it does.",
+  "source": {
+    "type": "github",
+    "owner": "your-username",
+    "repo": "your-repo",
+    "branch": "main",
+    "project_type": "nodejs",
+    "install_script": "scripts/install.sh"
+  },
+  "install_methods": [
+    {
+      "type": "default",
+      "script": "custom-ct/your-app-slug.sh",
+      "resources": {
+        "cpu": 1,
+        "ram": 1024,
+        "hdd": 8,
+        "os": "debian",
+        "version": "13"
+      }
+    },
+    {
+      "type": "alpine",
+      "script": "custom-ct/your-app-slug-alpine.sh",
+      "resources": {
+        "cpu": 1,
+        "ram": 512,
+        "hdd": 4,
+        "os": "alpine",
+        "version": "3.23"
+      }
+    }
+  ],
+  "default_credentials": {
+    "username": "admin",
+    "password": null
+  },
+  "notes": [
+    {
+      "text": "After installation, access the web interface at http://<IP>:3000",
+      "type": "info"
+    },
+    {
+      "text": "Default admin password is stored in /opt/your-app/.credentials",
+      "type": "warning"
+    },
+    {
+      "text": "For production, configure HTTPS using a reverse proxy",
+      "type": "info"
+    }
+  ],
+  "environment": {
+    "NODE_ENV": "production",
+    "PORT": "3000"
+  },
+  "features": {
+    "web_ui": true,
+    "api": true,
+    "database": "sqlite"
+  }
+}

@@ -1,0 +1,84 @@
+{
+  "name": "FirewallAudit",
+  "slug": "firewallaudit",
+  "categories": [14],
+  "date_created": "2024-12-24",
+  "type": "ct",
+  "updateable": true,
+  "privileged": false,
+  "interface_port": 3000,
+  "documentation": "https://github.com/b0bfranklin/FirewallAudit#readme",
+  "website": "https://github.com/b0bfranklin/FirewallAudit",
+  "logo": "https://cdn.jsdelivr.net/gh/selfhst/icons/webp/firewall.webp",
+  "config_path": "cat /opt/firewallaudit/.env",
+  "description": "A self-hosted web application for auditing and managing firewall rules. Built with Claude Code for automated deployment.",
+  "source": {
+    "type": "github",
+    "owner": "b0bfranklin",
+    "repo": "FirewallAudit",
+    "branch": "claude/self-hosted-web-app-fM6hv",
+    "project_type": "nodejs"
+  },
+  "install_methods": [
+    {
+      "type": "default",
+      "script": "custom-ct/firewallaudit.sh",
+      "resources": {
+        "cpu": 1,
+        "ram": 1024,
+        "hdd": 8,
+        "os": "debian",
+        "version": "13"
+      }
+    },
+    {
+      "type": "ubuntu",
+      "script": "custom-ct/firewallaudit-ubuntu.sh",
+      "resources": {
+        "cpu": 1,
+        "ram": 1024,
+        "hdd": 8,
+        "os": "ubuntu",
+        "version": "24.04"
+      }
+    },
+    {
+      "type": "alpine",
+      "script": "custom-ct/firewallaudit-alpine.sh",
+      "resources": {
+        "cpu": 1,
+        "ram": 512,
+        "hdd": 4,
+        "os": "alpine",
+        "version": "3.23"
+      }
+    }
+  ],
+  "default_credentials": {
+    "username": "admin",
+    "password": null
+  },
+  "notes": [
+    {
+      "text": "Access the web interface at http://<IP>:3000",
+      "type": "info"
+    },
+    {
+      "text": "Default credentials are generated during installation - check /opt/firewallaudit/.credentials",
+      "type": "warning"
+    },
+    {
+      "text": "Built with Claude Code - auto-imports from GitHub",
+      "type": "info"
+    }
+  ],
+  "environment": {
+    "NODE_ENV": "production",
+    "PORT": "3000"
+  },
+  "features": {
+    "web_ui": true,
+    "api": true,
+    "database": "sqlite"
+  }
+}
