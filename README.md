@@ -1,5 +1,8 @@
 # PVEScriptsLocal Customiser
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Compatible with: ProxmoxVE Community Scripts](https://img.shields.io/badge/Compatible-ProxmoxVE%20Community%20Scripts-orange.svg)](https://github.com/community-scripts/ProxmoxVE)
+
 Import custom GitHub/Claude Code projects into your PVEScriptsLocal installation for easy deployment as Proxmox containers or VMs.
 
 ![Architecture Diagram](docs/images/architecture-diagram.svg)
