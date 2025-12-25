@@ -4,7 +4,12 @@
 # Import custom projects from GitHub/Claude Code repositories
 # Supports: Ubuntu 24.04 LTS, Debian 13, Alpine 3.23
 #
-# Usage: ./pvescripts-import.sh [OPTIONS] <github-url>
+# Copyright (c) 2024-2025 b0bfranklin
+# License: MIT (see LICENSE file)
+#
+# This tool imports scripts - imported content retains its original license.
+#
+# Usage: ./pvescripts-import.sh [OPTIONS] <command> [arguments]
 #
 
 set -euo pipefail
@@ -16,7 +21,30 @@ CUSTOM_INSTALL_DIR="${PVESCRIPTS_DIR}/custom-install"
 CUSTOM_CT_DIR="${PVESCRIPTS_DIR}/custom-ct"
 DATA_DIR="${PVESCRIPTS_DIR}/data"
 CONFIG_FILE="${DATA_DIR}/custom-imports.json"
-VERSION="1.0.0"
+VERSION="1.1.0"
+
+# Import sources
+COMMUNITY_SCRIPTS_API="https://raw.githubusercontent.com/community-scripts/ProxmoxVE/main/json"
+SELFHST_API="https://raw.githubusercontent.com/rocketnova/selfhst-apps/main/data/projects.json"
+
+# Categories (matching PVEScriptsLocal)
+declare -A CATEGORIES=(
+    [1]="Automation"
+    [2]="Database"
+    [3]="Development"
+    [4]="Docker"
+    [5]="File Sharing"
+    [6]="Home Automation"
+    [7]="Media"
+    [8]="Monitoring"
+    [9]="Networking"
+    [10]="Security"
+    [11]="Storage"
+    [12]="Utilities"
+    [13]="Virtualization"
+    [14]="Custom"
+    [15]="Proxmox"
+)
 
 # Colors
 RED='\033[0;31m'
@@ -697,6 +725,222 @@ import_from_github() {
     echo ""
 }
 
+# Show available categories
+show_categories() {
+    echo ""
+    echo -e "${CYAN}Available Categories:${NC}"
+    echo ""
+    for id in $(echo "${!CATEGORIES[@]}" | tr ' ' '\n' | sort -n); do
+        echo "  $id: ${CATEGORIES[$id]}"
+    done
+    echo ""
+}
+
+# Set category for import
+set_category() {
+    local category_id="$1"
+
+    if [[ -z "${CATEGORIES[$category_id]:-}" ]]; then
+        log_error "Invalid category ID: $category_id"
+        show_categories
+        exit 1
+    fi
+
+    IMPORT_CATEGORY="$category_id"
+    log_info "Using category: ${CATEGORIES[$category_id]} (ID: $category_id)"
+}
+
+# Browse community-scripts
+browse_community_scripts() {
+    log_info "Fetching scripts from community-scripts.github.io..."
+
+    local scripts_list
+    scripts_list=$(curl -s "https://api.github.com/repos/community-scripts/ProxmoxVE/contents/json" 2>/dev/null)
+
+    if [ -z "$scripts_list" ] || [[ "$scripts_list" == *"Not Found"* ]]; then
+        log_error "Failed to fetch community scripts"
+        exit 1
+    fi
+
+    echo ""
+    echo -e "${CYAN}=== Community Scripts (Proxmox VE Helper-Scripts) ===${NC}"
+    echo ""
+    echo "Available scripts (showing first 50):"
+    echo ""
+
+    echo "$scripts_list" | jq -r '.[0:50] | .[] | select(.name | endswith(".json")) | .name' | sed 's/.json$//' | column
+
+    echo ""
+    echo -e "${YELLOW}To import a community script:${NC}"
+    echo "  pvescripts-import community-import <script-name>"
+    echo ""
+    echo -e "${YELLOW}To search for a script:${NC}"
+    echo "  pvescripts-import community-search <keyword>"
+    echo ""
+}
+
+# Search community scripts
+search_community_scripts() {
+    local keyword="$1"
+
+    log_info "Searching community scripts for: $keyword"
+
+    local scripts_list
+    scripts_list=$(curl -s "https://api.github.com/repos/community-scripts/ProxmoxVE/contents/json" 2>/dev/null)
+
+    echo ""
+    echo -e "${CYAN}=== Search Results for '$keyword' ===${NC}"
+    echo ""
+
+    echo "$scripts_list" | jq -r --arg kw "$keyword" '.[] | select(.name | ascii_downcase | contains($kw | ascii_downcase)) | select(.name | endswith(".json")) | .name' | sed 's/.json$//'
+    echo ""
+}
+
+# Import from community-scripts
+import_community_script() {
+    local script_name="$1"
+
+    log_info "Importing community script: $script_name"
+
+    # Fetch the script JSON
+    local script_url="${COMMUNITY_SCRIPTS_API}/${script_name}.json"
+    local script_json
+    script_json=$(curl -s "$script_url" 2>/dev/null)
+
+    if [ -z "$script_json" ] || [[ "$script_json" == *"404"* ]]; then
+        log_error "Script not found: $script_name"
+        exit 1
+    fi
+
+    # The community script JSON is already in the right format
+    MANIFEST_CONTENT="$script_json"
+
+    # Add source tracking
+    MANIFEST_CONTENT=$(echo "$MANIFEST_CONTENT" | jq '. + {
+        "source": {
+            "type": "community-scripts",
+            "script": "'"$script_name"'",
+            "url": "'"$script_url"'"
+        }
+    }')
+
+    # Save manifest (scripts are already on the main repo, just need the JSON)
+    save_manifest
+
+    # Update registry
+    local slug
+    slug=$(echo "$MANIFEST_CONTENT" | jq -r '.slug')
+
+    mkdir -p "$DATA_DIR"
+    if [ ! -f "$CONFIG_FILE" ]; then
+        echo '{"imports": [], "last_updated": ""}' > "$CONFIG_FILE"
+    fi
+
+    local import_entry
+    import_entry=$(cat <<EOF
+{
+  "slug": "${slug}",
+  "source": "community-scripts",
+  "script_name": "${script_name}",
+  "imported_at": "$(date -Iseconds)"
+}
+EOF
+)
+
+    jq --argjson entry "$import_entry" '
+        .imports = [.imports[] | select(.slug != $entry.slug)] + [$entry] |
+        .last_updated = now | todate
+    ' "$CONFIG_FILE" > "${CONFIG_FILE}.tmp"
+    mv "${CONFIG_FILE}.tmp" "$CONFIG_FILE"
+
+    trigger_rebuild
+
+    echo ""
+    log_success "Community script imported: $script_name"
+    echo ""
+    echo "$MANIFEST_CONTENT" | jq -r '"  Name: \(.name)\n  Slug: \(.slug)\n  Category: \(.categories[0] // "N/A")"'
+    echo ""
+}
+
+# Browse selfh.st apps
+browse_selfhst() {
+    log_info "Fetching apps from selfh.st..."
+
+    local apps_json
+    apps_json=$(curl -s "$SELFHST_API" 2>/dev/null)
+
+    if [ -z "$apps_json" ]; then
+        log_error "Failed to fetch selfh.st apps"
+        exit 1
+    fi
+
+    echo ""
+    echo -e "${CYAN}=== selfh.st Apps Directory ===${NC}"
+    echo ""
+    echo "Popular self-hosted apps (showing top 30 by stars):"
+    echo ""
+
+    echo "$apps_json" | jq -r 'sort_by(-.stars) | .[0:30] | .[] | "\(.name) (\(.stars) stars) - \(.repo // "no repo")"'
+
+    echo ""
+    echo -e "${YELLOW}To import a selfh.st app:${NC}"
+    echo "  pvescripts-import selfhst-import <app-name>"
+    echo ""
+    echo -e "${YELLOW}To search:${NC}"
+    echo "  pvescripts-import selfhst-search <keyword>"
+    echo ""
+}
+
+# Search selfh.st apps
+search_selfhst() {
+    local keyword="$1"
+
+    log_info "Searching selfh.st for: $keyword"
+
+    local apps_json
+    apps_json=$(curl -s "$SELFHST_API" 2>/dev/null)
+
+    echo ""
+    echo -e "${CYAN}=== selfh.st Search Results for '$keyword' ===${NC}"
+    echo ""
+
+    echo "$apps_json" | jq -r --arg kw "$keyword" '[.[] | select(.name | ascii_downcase | contains($kw | ascii_downcase))] | sort_by(-.stars) | .[] | "\(.name) (\(.stars) stars) - \(.repo // "no repo")"'
+    echo ""
+}
+
+# Import from selfh.st
+import_selfhst() {
+    local app_name="$1"
+
+    log_info "Importing selfh.st app: $app_name"
+
+    local apps_json
+    apps_json=$(curl -s "$SELFHST_API" 2>/dev/null)
+
+    local app_info
+    app_info=$(echo "$apps_json" | jq --arg name "$app_name" '.[] | select(.name | ascii_downcase == ($name | ascii_downcase))')
+
+    if [ -z "$app_info" ]; then
+        log_error "App not found: $app_name"
+        log_info "Try: pvescripts-import selfhst-search $app_name"
+        exit 1
+    fi
+
+    # Extract GitHub URL from app info
+    local repo_url
+    repo_url=$(echo "$app_info" | jq -r '.repo // empty')
+
+    if [ -z "$repo_url" ] || [ "$repo_url" == "null" ]; then
+        log_error "No GitHub repository found for: $app_name"
+        exit 1
+    fi
+
+    log_info "Found repository: $repo_url"
+
+    # Import using the GitHub importer
+    import_from_github "$repo_url"
+}
+
 # Show usage
 usage() {
     cat <<EOF
@@ -705,29 +949,43 @@ PVEScriptsLocal Custom Importer v${VERSION}
 Usage: $(basename "$0") [OPTIONS] <command> [arguments]
 
 Commands:
-  import <github-url>    Import a GitHub repository
-  list                   List all imported scripts
-  remove <slug>          Remove an imported script
-  update <slug>          Update an imported script
-  update-all             Update all imported scripts
+  import <github-url>      Import a GitHub repository
+  list                     List all imported scripts
+  remove <slug>            Remove an imported script
+  update <slug>            Update an imported script
+  update-all               Update all imported scripts
+
+  community-browse         Browse community-scripts.github.io
+  community-search <term>  Search community scripts
+  community-import <name>  Import a community script by name
+
+  selfhst-browse           Browse selfh.st apps directory
+  selfhst-search <term>    Search selfh.st apps
+  selfhst-import <name>    Import a selfh.st app by name
+
+  categories               Show available categories
 
 Options:
-  -h, --help            Show this help message
-  -v, --version         Show version
-  --no-rebuild          Skip PVEScriptsLocal rebuild after import
+  -h, --help              Show this help message
+  -v, --version           Show version
+  -c, --category <id>     Set category for import (default: 14 = Custom)
+  --no-rebuild            Skip PVEScriptsLocal rebuild after import
 
 Supported OS: Ubuntu 24.04 LTS, Debian 13, Alpine 3.23
 
 Examples:
   $(basename "$0") import https://github.com/user/repo
-  $(basename "$0") import https://github.com/user/repo/tree/feature-branch
+  $(basename "$0") import -c 8 https://github.com/user/monitoring-app
+  $(basename "$0") community-browse
+  $(basename "$0") community-import adguard
+  $(basename "$0") selfhst-search nextcloud
   $(basename "$0") list
-  $(basename "$0") remove my-script
-  $(basename "$0") update my-script
-  $(basename "$0") update-all
 
 Environment Variables:
   PVESCRIPTS_DIR    PVEScriptsLocal installation directory (default: /opt/ProxmoxVE-Local)
+
+License:
+  MIT License - This tool only. Imported content retains its original license.
 
 EOF
 }
@@ -754,6 +1012,16 @@ main() {
                 ;;
             --no-rebuild)
                 SKIP_REBUILD=true
+                shift
+                ;;
+            -c|--category)
+                shift
+                if [ $# -eq 0 ]; then
+                    log_error "Missing category ID"
+                    show_categories
+                    exit 1
+                fi
+                set_category "$1"
                 shift
                 ;;
             import)
@@ -804,6 +1072,64 @@ main() {
                 else
                     log_info "No imports to update"
                 fi
+                exit 0
+                ;;
+            categories)
+                show_categories
+                exit 0
+                ;;
+            community-browse)
+                install_dependencies
+                browse_community_scripts
+                exit 0
+                ;;
+            community-search)
+                shift
+                if [ $# -eq 0 ]; then
+                    log_error "Missing search term"
+                    exit 1
+                fi
+                install_dependencies
+                search_community_scripts "$1"
+                exit 0
+                ;;
+            community-import)
+                shift
+                if [ $# -eq 0 ]; then
+                    log_error "Missing script name"
+                    exit 1
+                fi
+                detect_os
+                install_dependencies
+                check_pvescripts
+                import_community_script "$1"
+                exit 0
+                ;;
+            selfhst-browse)
+                install_dependencies
+                browse_selfhst
+                exit 0
+                ;;
+            selfhst-search)
+                shift
+                if [ $# -eq 0 ]; then
+                    log_error "Missing search term"
+                    exit 1
+                fi
+                install_dependencies
+                search_selfhst "$1"
+                exit 0
+                ;;
+            selfhst-import)
+                shift
+                if [ $# -eq 0 ]; then
+                    log_error "Missing app name"
+                    exit 1
+                fi
+                detect_os
+                install_dependencies
+                check_pvescripts
+                import_selfhst "$1"
                 exit 0
                 ;;
             *)

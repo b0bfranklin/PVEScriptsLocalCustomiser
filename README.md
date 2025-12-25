@@ -164,13 +164,54 @@ After installation, files are placed in:
 
 ### CLI Commands
 
+#### GitHub Import
 | Command | Description |
 |---------|-------------|
 | `pvescripts-import import <url>` | Import a GitHub repository |
+| `pvescripts-import import -c 8 <url>` | Import with specific category (8=Monitoring) |
 | `pvescripts-import list` | List all imported scripts |
 | `pvescripts-import remove <slug>` | Remove an imported script |
 | `pvescripts-import update <slug>` | Update a specific import |
 | `pvescripts-import update-all` | Update all imported scripts |
+| `pvescripts-import categories` | Show available categories |
+
+#### Community Scripts (community-scripts.github.io)
+| Command | Description |
+|---------|-------------|
+| `pvescripts-import community-browse` | Browse available community scripts |
+| `pvescripts-import community-search <term>` | Search for scripts |
+| `pvescripts-import community-import <name>` | Import a script by name |
+
+#### selfh.st Apps Directory
+| Command | Description |
+|---------|-------------|
+| `pvescripts-import selfhst-browse` | Browse popular self-hosted apps |
+| `pvescripts-import selfhst-search <term>` | Search for apps |
+| `pvescripts-import selfhst-import <name>` | Import an app by name |
+
+### Categories
+
+Scripts can be placed in existing PVEScriptsLocal categories or in a new "Custom" category:
+
+| ID | Category |
+|----|----------|
+| 1 | Automation |
+| 2 | Database |
+| 3 | Development |
+| 4 | Docker |
+| 5 | File Sharing |
+| 6 | Home Automation |
+| 7 | Media |
+| 8 | Monitoring |
+| 9 | Networking |
+| 10 | Security |
+| 11 | Storage |
+| 12 | Utilities |
+| 13 | Virtualization |
+| 14 | Custom (default) |
+| 15 | Proxmox |
+
+Use `-c <id>` to assign a category during import.
 
 ### Environment Variables
 

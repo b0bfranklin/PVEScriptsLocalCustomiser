@@ -1,8 +1,14 @@
 /**
  * PVEScriptsLocal Custom Import API Router
  *
+ * Copyright (c) 2024-2025 b0bfranklin
+ * License: MIT (see LICENSE file)
+ *
  * This file provides the tRPC router for the web interface to import
  * custom scripts from GitHub/Claude Code repositories.
+ *
+ * IMPORTANT: This tool imports content - imported content retains its
+ * original license from the source repository.
  *
  * Add this to your existing PVEScriptsLocal installation by including
  * it in your tRPC router configuration.

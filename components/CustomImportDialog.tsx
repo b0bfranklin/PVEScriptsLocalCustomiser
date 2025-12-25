@@ -1,8 +1,14 @@
 /**
  * Custom Import Dialog Component for PVEScriptsLocal
  *
+ * Copyright (c) 2024-2025 b0bfranklin
+ * License: MIT (see LICENSE file)
+ *
  * This React component provides a web interface for importing
  * GitHub/Claude Code repositories into PVEScriptsLocal.
+ *
+ * IMPORTANT: This tool imports content - imported content retains its
+ * original license from the source repository.
  *
  * Add this to your PVEScriptsLocal installation's components directory.
  */
