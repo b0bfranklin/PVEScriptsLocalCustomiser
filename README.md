@@ -3,14 +3,15 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Compatible with: ProxmoxVE Community Scripts](https://img.shields.io/badge/Compatible-ProxmoxVE%20Community%20Scripts-orange.svg)](https://github.com/community-scripts/ProxmoxVE)
 
-Import custom GitHub/Claude Code projects into your PVEScriptsLocal installation for easy deployment as Proxmox containers or VMs.
+Import custom projects into your PVEScriptsLocal installation from GitHub, community-scripts, and selfh.st for easy deployment as Proxmox containers or VMs.
 
 ![Architecture Diagram](docs/images/architecture-diagram.svg)
 
 ## Features
 
+- **Web Dashboard**: Browse and import scripts through a modern web interface (port 3001)
+- **Multi-Source Import**: Import from GitHub, community-scripts.github.io, and selfh.st
 - **CLI Import Tool**: Import GitHub repositories directly from command line
-- **Web Interface**: Import through PVEScriptsLocal's web UI
 - **Auto-Detection**: Automatically detects project type (Node.js, Python, Docker, Go, Rust)
 - **Multi-OS Support**: Deploy on Debian 13, Ubuntu 24.04 LTS, or Alpine 3.23
 - **Custom Manifests**: Projects can include their own deployment configuration
@@ -25,6 +26,23 @@ Import custom GitHub/Claude Code projects into your PVEScriptsLocal installation
 | Alpine | 3.23 | Fully Supported |
 
 ## Quick Start
+
+### Web Dashboard Installation (Recommended)
+
+The web dashboard provides a user-friendly interface to browse and import scripts from multiple sources.
+
+```bash
+# One-line install
+bash <(curl -fsSL https://raw.githubusercontent.com/b0bfranklin/PVEScriptsLocalCustomiser/main/install-dashboard.sh)
+```
+
+After installation, access the dashboard at `http://your-server:3001`
+
+The dashboard allows you to:
+- **Community Scripts**: Browse 400+ scripts from community-scripts.github.io
+- **selfh.st Apps**: Browse popular self-hosted apps with GitHub stars
+- **GitHub Import**: Import any public GitHub repository
+- **My Imports**: Manage, update, or remove your imported scripts
 
 ### CLI Installation
 
@@ -57,28 +75,28 @@ pvescripts-import remove my-app-slug
 
 ![CLI List Example](docs/images/cli-list-example.svg)
 
-### Web Interface Installation
+### Managing the Dashboard Service
 
-Add the Custom Import functionality to your PVEScriptsLocal installation:
+```bash
+# View logs
+journalctl -u pvescripts-customiser -f
 
-1. Copy `api/custom-import-router.ts` to your PVEScriptsLocal `src/server/routers/` directory
-2. Copy `components/CustomImportDialog.tsx` to your `src/components/` directory
-3. Add the router to your tRPC configuration
-4. Import and use the `CustomImportDialog` component in your UI
+# Restart service
+systemctl restart pvescripts-customiser
 
-#### Web Interface Screenshots
+# Stop service
+systemctl stop pvescripts-customiser
 
-**Step 1: Enter GitHub URL**
+# Check status
+systemctl status pvescripts-customiser
+```
 
-![Import Dialog - Input](docs/images/import-dialog-input.svg)
+### Environment Variables
 
-**Step 2: Preview & Configure**
-
-![Import Dialog - Preview](docs/images/import-dialog-preview.svg)
-
-**Step 3: Import Complete**
-
-![Import Dialog - Success](docs/images/import-dialog-success.svg)
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `PVESCRIPTS_PATH` | `/opt/ProxmoxVE-Local` | PVEScriptsLocal installation path |
+| `DASHBOARD_PORT` | `3001` | Port for the web dashboard |
 
 ## Creating a Deployable Project
 
@@ -213,22 +231,19 @@ Scripts can be placed in existing PVEScriptsLocal categories or in a new "Custom
 
 Use `-c <id>` to assign a category during import.
 
-### Environment Variables
+## Web Dashboard API
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `PVESCRIPTS_DIR` | `/opt/ProxmoxVE-Local` | PVEScriptsLocal installation path |
+The dashboard provides REST API endpoints:
 
-## Web Interface API
-
-The tRPC router provides the following procedures:
-
-- `customImport.import` - Import a new repository
-- `customImport.list` - List all imports
-- `customImport.get` - Get details of a specific import
-- `customImport.remove` - Remove an import
-- `customImport.update` - Update an import from source
-- `customImport.preview` - Preview import without saving
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/sources/community-scripts` | GET | List available community scripts |
+| `/api/sources/selfhst` | GET | List selfh.st apps |
+| `/api/import/github` | POST | Import from GitHub URL |
+| `/api/import/community-script` | POST | Import community script |
+| `/api/imports` | GET | List imported scripts |
+| `/api/imports/[slug]` | DELETE | Remove an import |
+| `/api/imports/[slug]/update` | POST | Update import from source |
 
 ## OS-Specific Templates
 
