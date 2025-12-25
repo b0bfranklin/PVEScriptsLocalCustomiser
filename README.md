@@ -2,6 +2,8 @@
 
 Import custom GitHub/Claude Code projects into your PVEScriptsLocal installation for easy deployment as Proxmox containers or VMs.
 
+![Architecture Diagram](docs/images/architecture-diagram.svg)
+
 ## Features
 
 - **CLI Import Tool**: Import GitHub repositories directly from command line
@@ -44,6 +46,14 @@ pvescripts-import update my-app-slug
 pvescripts-import remove my-app-slug
 ```
 
+#### CLI Import Example
+
+![CLI Import Example](docs/images/cli-import-example.svg)
+
+#### CLI List Example
+
+![CLI List Example](docs/images/cli-list-example.svg)
+
 ### Web Interface Installation
 
 Add the Custom Import functionality to your PVEScriptsLocal installation:
@@ -52,6 +62,20 @@ Add the Custom Import functionality to your PVEScriptsLocal installation:
 2. Copy `components/CustomImportDialog.tsx` to your `src/components/` directory
 3. Add the router to your tRPC configuration
 4. Import and use the `CustomImportDialog` component in your UI
+
+#### Web Interface Screenshots
+
+**Step 1: Enter GitHub URL**
+
+![Import Dialog - Input](docs/images/import-dialog-input.svg)
+
+**Step 2: Preview & Configure**
+
+![Import Dialog - Preview](docs/images/import-dialog-preview.svg)
+
+**Step 3: Import Complete**
+
+![Import Dialog - Success](docs/images/import-dialog-success.svg)
 
 ## Creating a Deployable Project
 
