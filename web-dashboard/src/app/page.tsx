@@ -7,7 +7,7 @@
 
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Github, Globe, Package, Settings, ExternalLink, RefreshCw } from 'lucide-react'
 import GitHubImporter from '@/components/GitHubImporter'
 import CommunityScriptsBrowser from '@/components/CommunityScriptsBrowser'
@@ -19,6 +19,13 @@ type Tab = 'github' | 'community' | 'selfhst' | 'imported'
 export default function Home() {
   const [activeTab, setActiveTab] = useState<Tab>('community')
   const [refreshKey, setRefreshKey] = useState(0)
+  const [pveScriptsUrl, setPveScriptsUrl] = useState('')
+
+  useEffect(() => {
+    // Build PVEScriptsLocal URL using current hostname
+    const host = window.location.hostname
+    setPveScriptsUrl(`http://${host}:3000`)
+  }, [])
 
   const tabs = [
     { id: 'community' as Tab, label: 'Community Scripts', icon: Package, color: 'text-orange-500' },
@@ -44,15 +51,17 @@ export default function Home() {
             Import scripts into your PVEScriptsLocal installation
           </p>
         </div>
-        <a
-          href="http://localhost:3000"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center gap-2 px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg transition-colors"
-        >
-          <ExternalLink className="h-4 w-4" />
-          Open PVEScriptsLocal
-        </a>
+{pveScriptsUrl && (
+          <a
+            href={pveScriptsUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg transition-colors"
+          >
+            <ExternalLink className="h-4 w-4" />
+            Open PVEScriptsLocal
+          </a>
+        )}
       </div>
 
       {/* Tabs */}
