@@ -159,6 +159,14 @@ else
     exit 1
 fi
 
+# Run the patch script to add link in PVEScriptsLocal
+msg_info "Patching PVEScriptsLocal to add dashboard link..."
+if [[ -x "${INSTALL_DIR}/scripts/patch-pvescripts.sh" ]]; then
+    bash "${INSTALL_DIR}/scripts/patch-pvescripts.sh"
+else
+    msg_info "Patch script not found, skipping UI integration"
+fi
+
 msg_header "Installation Complete!"
 
 # Get IP address

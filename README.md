@@ -91,6 +91,17 @@ systemctl stop pvescripts-customiser
 systemctl status pvescripts-customiser
 ```
 
+### After Updating PVEScriptsLocal
+
+When PVEScriptsLocal updates, the link to the dashboard may be removed. Run the patch script to restore it:
+
+```bash
+# Re-add the dashboard link after PVEScriptsLocal updates
+bash /opt/pvescripts-customiser/scripts/patch-pvescripts.sh
+```
+
+This creates a redirect page at `http://<your-ip>:3000/import.html` that links to the dashboard.
+
 ### Environment Variables
 
 | Variable | Default | Description |
