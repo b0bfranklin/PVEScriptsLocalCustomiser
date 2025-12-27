@@ -14,6 +14,9 @@ const inter = Inter({ subsets: ['latin'] })
 export const metadata: Metadata = {
   title: 'PVEScripts Importer',
   description: 'Import scripts into PVEScriptsLocal from GitHub, community-scripts, and selfh.st',
+  icons: {
+    icon: '/favicon.svg',
+  },
 }
 
 export default function RootLayout({

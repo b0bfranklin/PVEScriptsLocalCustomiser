@@ -13,6 +13,7 @@ import {
   writeInstallScript,
   detectProjectType,
   generateInstallScript,
+  isValidSlug,
   type ScriptManifest,
 } from '@/lib/pvescripts'
 
@@ -23,9 +24,9 @@ export async function POST(
   try {
     const { slug } = await params
 
-    if (!slug) {
+    if (!slug || !isValidSlug(slug)) {
       return NextResponse.json(
-        { success: false, message: 'Slug is required' },
+        { success: false, message: 'Invalid slug format' },
         { status: 400 }
       )
     }

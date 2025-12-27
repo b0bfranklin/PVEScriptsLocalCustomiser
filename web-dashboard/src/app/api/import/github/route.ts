@@ -17,11 +17,17 @@ import {
   CATEGORIES,
   type ScriptManifest,
 } from '@/lib/pvescripts'
+import {
+  getCredentialForUrl,
+  buildAuthHeader,
+  buildAuthenticatedUrl,
+} from '@/lib/settings'
 
 interface ImportRequest {
   url: string
   category?: string
   name?: string
+  credentialId?: string // Optional: specific credential to use
 }
 
 function parseGitHubUrl(url: string): { owner: string; repo: string; branch: string } | null {
@@ -79,6 +85,10 @@ export async function POST(request: NextRequest) {
 
     const { owner, repo, branch } = parsed
 
+    // Check for stored credentials for this URL
+    const credential = await getCredentialForUrl(body.url)
+    const authHeaders = credential ? buildAuthHeader(credential) : {}
+
     // Fetch repository info
     const repoResponse = await fetch(
       `https://api.github.com/repos/${owner}/${repo}`,
@@ -86,11 +96,22 @@ export async function POST(request: NextRequest) {
         headers: {
           Accept: 'application/vnd.github.v3+json',
           'User-Agent': 'PVEScriptsLocal-Customiser',
+          ...authHeaders,
         },
       }
     )
 
     if (!repoResponse.ok) {
+      if (repoResponse.status === 401 || repoResponse.status === 403) {
+        return NextResponse.json(
+          {
+            success: false,
+            message: 'Authentication required. Please add credentials in Settings.',
+            requiresAuth: true,
+          },
+          { status: 401 }
+        )
+      }
       return NextResponse.json(
         { success: false, message: `Repository not found: ${owner}/${repo}` },
         { status: 404 }
@@ -106,6 +127,7 @@ export async function POST(request: NextRequest) {
         headers: {
           Accept: 'application/vnd.github.v3+json',
           'User-Agent': 'PVEScriptsLocal-Customiser',
+          ...authHeaders,
         },
       }
     )
@@ -163,12 +185,16 @@ export async function POST(request: NextRequest) {
       ],
     }
 
-    // Generate install script
+    // Generate install script with authenticated URL if needed
+    const cloneUrl = credential
+      ? buildAuthenticatedUrl(repoInfo.clone_url, credential)
+      : repoInfo.clone_url
+
     const installScript = generateInstallScript(
       name,
       slug,
       projectType.type,
-      repoInfo.clone_url,
+      cloneUrl,
       projectType.port
     )
 
