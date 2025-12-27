@@ -177,6 +177,11 @@ export function slugify(name: string): string {
     .substring(0, 50)
 }
 
+export function isValidSlug(slug: string): boolean {
+  // Prevent path traversal - only allow alphanumeric and hyphens
+  return /^[a-z0-9][a-z0-9-]*[a-z0-9]$|^[a-z0-9]$/.test(slug) && !slug.includes('..')
+}
+
 export async function detectProjectType(repoFiles: string[]): Promise<{
   type: string
   port: number | null
