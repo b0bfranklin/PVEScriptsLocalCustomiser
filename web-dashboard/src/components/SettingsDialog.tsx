@@ -33,17 +33,20 @@ interface Credential {
   createdAt: string
 }
 
+type Provider = 'github' | 'gitea' | 'gitlab' | 'bitbucket' | 'custom'
+type AuthType = 'token' | 'basic'
+
 interface SettingsDialogProps {
   isOpen: boolean
   onClose: () => void
 }
 
 const providerOptions = [
-  { value: 'github', label: 'GitHub', icon: Github },
-  { value: 'gitlab', label: 'GitLab', icon: Globe },
-  { value: 'gitea', label: 'Gitea', icon: Globe },
-  { value: 'bitbucket', label: 'Bitbucket', icon: Globe },
-  { value: 'custom', label: 'Custom/Self-hosted', icon: Globe },
+  { value: 'github' as Provider, label: 'GitHub', icon: Github },
+  { value: 'gitlab' as Provider, label: 'GitLab', icon: Globe },
+  { value: 'gitea' as Provider, label: 'Gitea', icon: Globe },
+  { value: 'bitbucket' as Provider, label: 'Bitbucket', icon: Globe },
+  { value: 'custom' as Provider, label: 'Custom/Self-hosted', icon: Globe },
 ]
 
 export default function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
@@ -55,11 +58,18 @@ export default function SettingsDialog({ isOpen, onClose }: SettingsDialogProps)
 
   // New credential form
   const [showNewForm, setShowNewForm] = useState(false)
-  const [newCred, setNewCred] = useState({
+  const [newCred, setNewCred] = useState<{
+    name: string
+    provider: Provider
+    baseUrl: string
+    authType: AuthType
+    username: string
+    token: string
+  }>({
     name: '',
-    provider: 'github' as const,
+    provider: 'github',
     baseUrl: '',
-    authType: 'token' as const,
+    authType: 'token',
     username: '',
     token: '',
   })
@@ -244,7 +254,7 @@ export default function SettingsDialog({ isOpen, onClose }: SettingsDialogProps)
                       <select
                         value={newCred.provider}
                         onChange={(e) =>
-                          setNewCred({ ...newCred, provider: e.target.value as any })
+                          setNewCred({ ...newCred, provider: e.target.value as Provider })
                         }
                         className="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg text-white focus:border-green-500 focus:outline-none"
                       >
