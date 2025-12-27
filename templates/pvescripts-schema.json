@@ -1,0 +1,186 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "PVEScriptsLocal Manifest",
+  "description": "Schema for PVEScriptsLocal deployment manifests",
+  "type": "object",
+  "required": ["name", "slug", "type", "description", "install_methods"],
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Display name of the application"
+    },
+    "slug": {
+      "type": "string",
+      "pattern": "^[a-z0-9-]+$",
+      "description": "URL-safe identifier for the application"
+    },
+    "categories": {
+      "type": "array",
+      "items": { "type": "integer" },
+      "description": "Category IDs (14 = Custom)"
+    },
+    "date_created": {
+      "type": "string",
+      "format": "date",
+      "description": "Creation date in YYYY-MM-DD format"
+    },
+    "type": {
+      "type": "string",
+      "enum": ["ct", "vm"],
+      "description": "Deployment type: ct (container) or vm (virtual machine)"
+    },
+    "updateable": {
+      "type": "boolean",
+      "description": "Whether the application supports updates"
+    },
+    "privileged": {
+      "type": "boolean",
+      "description": "Whether the container requires privileged mode"
+    },
+    "interface_port": {
+      "type": ["integer", "null"],
+      "minimum": 1,
+      "maximum": 65535,
+      "description": "Web interface port, null if no web interface"
+    },
+    "documentation": {
+      "type": "string",
+      "format": "uri",
+      "description": "URL to documentation"
+    },
+    "website": {
+      "type": "string",
+      "format": "uri",
+      "description": "Official website URL"
+    },
+    "logo": {
+      "type": "string",
+      "format": "uri",
+      "description": "URL to application logo"
+    },
+    "config_path": {
+      "type": "string",
+      "description": "Command to display configuration file"
+    },
+    "description": {
+      "type": "string",
+      "description": "Brief description of the application"
+    },
+    "source": {
+      "type": "object",
+      "description": "Source repository information",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["github", "gitlab", "bitbucket", "custom"]
+        },
+        "owner": {
+          "type": "string",
+          "description": "Repository owner/organization"
+        },
+        "repo": {
+          "type": "string",
+          "description": "Repository name"
+        },
+        "branch": {
+          "type": "string",
+          "description": "Default branch to use"
+        },
+        "project_type": {
+          "type": "string",
+          "enum": ["nodejs", "python", "docker", "golang", "rust", "php", "generic"],
+          "description": "Project type for auto-detection"
+        },
+        "install_script": {
+          "type": "string",
+          "description": "Path to custom install script in repository"
+        }
+      }
+    },
+    "install_methods": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["type", "script", "resources"],
+        "properties": {
+          "type": {
+            "type": "string",
+            "description": "Install method identifier (default, alpine, etc.)"
+          },
+          "script": {
+            "type": "string",
+            "description": "Path to installation script"
+          },
+          "resources": {
+            "type": "object",
+            "required": ["cpu", "ram", "hdd", "os", "version"],
+            "properties": {
+              "cpu": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 16,
+                "description": "Number of CPU cores"
+              },
+              "ram": {
+                "type": "integer",
+                "minimum": 128,
+                "maximum": 32768,
+                "description": "RAM in MB"
+              },
+              "hdd": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 500,
+                "description": "Disk size in GB"
+              },
+              "os": {
+                "type": "string",
+                "enum": ["debian", "ubuntu", "alpine"],
+                "description": "Operating system"
+              },
+              "version": {
+                "type": "string",
+                "description": "OS version"
+              }
+            }
+          }
+        }
+      }
+    },
+    "default_credentials": {
+      "type": "object",
+      "properties": {
+        "username": { "type": ["string", "null"] },
+        "password": { "type": ["string", "null"] }
+      }
+    },
+    "notes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["text", "type"],
+        "properties": {
+          "text": { "type": "string" },
+          "type": {
+            "type": "string",
+            "enum": ["info", "warning", "danger"]
+          }
+        }
+      }
+    },
+    "environment": {
+      "type": "object",
+      "additionalProperties": { "type": "string" },
+      "description": "Environment variables to set"
+    },
+    "features": {
+      "type": "object",
+      "properties": {
+        "web_ui": { "type": "boolean" },
+        "api": { "type": "boolean" },
+        "database": { "type": "string" }
+      }
+    }
+  }
+}

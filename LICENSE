@@ -1,0 +1,68 @@
+MIT License
+
+Copyright (c) 2024-2025 b0bfranklin
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+-------------------------------------------------------------------------------
+
+## License Scope Clarification
+
+This MIT License applies ONLY to the PVEScriptsLocalCustomiser tool itself:
+- The import scripts (`scripts/pvescripts-import.sh`)
+- The API router (`api/custom-import-router.ts`)
+- The UI components (`components/CustomImportDialog.tsx`)
+- The templates (`templates/*`)
+- Documentation and examples
+
+### Content Imported/Deployed Through This Tool
+
+Content imported or deployed through this tool retains its ORIGINAL LICENSE
+from its source repository. This tool does not transfer, modify, or override
+the licensing of any third-party content.
+
+When importing a project:
+- The project's original license remains in effect
+- Users must comply with the source project's license terms
+- This tool merely facilitates deployment - it does not relicense content
+
+### Third-Party Scripts
+
+Scripts downloaded from community-scripts.github.io or selfh.st maintain their
+original licensing (typically MIT for Proxmox community scripts).
+
+-------------------------------------------------------------------------------
+
+## Attribution & Compatibility
+
+This project is designed to work with:
+
+- **ProxmoxVE Community Scripts**
+  https://github.com/community-scripts/ProxmoxVE
+  License: MIT (Copyright tteck | community-scripts ORG)
+
+- **PVEScriptsLocal**
+  https://github.com/community-scripts/ProxmoxVE-Local
+  Part of community-scripts organization
+
+- **selfh.st/apps**
+  https://github.com/rocketnova/selfhst-apps
+  Self-hosted software directory
+
+All referenced projects are independent and maintain their own licenses.
