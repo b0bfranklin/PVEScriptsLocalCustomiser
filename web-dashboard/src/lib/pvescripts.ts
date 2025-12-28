@@ -9,9 +9,11 @@ import { readFile, writeFile, readdir, mkdir, unlink, access } from 'fs/promises
 import { join } from 'path'
 import { constants } from 'fs'
 
-// Default PVEScriptsLocal installation path
+// Installation paths
 const PVESCRIPTS_PATH = process.env.PVESCRIPTS_PATH || '/opt/ProxmoxVE-Local'
-const IMPORTS_FILE = join(PVESCRIPTS_PATH, 'json', '.pvescripts-imports.json')
+const CUSTOMISER_PATH = process.env.CUSTOMISER_PATH || '/opt/pvescripts-customiser'
+// Store imports in customiser directory (always writable)
+const IMPORTS_FILE = join(CUSTOMISER_PATH, 'data', 'imports.json')
 
 export interface ScriptManifest {
   name: string
@@ -58,6 +60,7 @@ export interface ImportRecord {
   sourceType: 'github' | 'community-scripts' | 'selfhst'
   importedAt: string
   category?: string
+  categoryId?: number
   manifestPath?: string
 }
 
@@ -93,11 +96,11 @@ export async function loadImports(): Promise<ImportRecord[]> {
 }
 
 export async function saveImports(imports: ImportRecord[]): Promise<void> {
-  const jsonPath = join(PVESCRIPTS_PATH, 'json')
+  const dataPath = join(CUSTOMISER_PATH, 'data')
   try {
-    await access(jsonPath, constants.W_OK)
+    await access(dataPath, constants.W_OK)
   } catch {
-    await mkdir(jsonPath, { recursive: true })
+    await mkdir(dataPath, { recursive: true })
   }
   await writeFile(IMPORTS_FILE, JSON.stringify({ imports }, null, 2))
 }
@@ -126,6 +129,29 @@ export async function removeImport(slug: string): Promise<boolean> {
 export async function getImportBySlug(slug: string): Promise<ImportRecord | null> {
   const imports = await loadImports()
   return imports.find(i => i.slug === slug) || null
+}
+
+export async function updateImportCategory(slug: string, categoryId: number): Promise<ImportRecord | null> {
+  const imports = await loadImports()
+  const importIndex = imports.findIndex(i => i.slug === slug)
+  if (importIndex === -1) return null
+
+  imports[importIndex].categoryId = categoryId
+  await saveImports(imports)
+
+  // Also update the manifest file
+  const jsonPath = await getJsonPath()
+  const manifestPath = join(jsonPath, `${slug}.json`)
+  try {
+    const manifestData = await readFile(manifestPath, 'utf-8')
+    const manifest = JSON.parse(manifestData)
+    manifest.categories = [categoryId]
+    await writeFile(manifestPath, JSON.stringify(manifest, null, 2))
+  } catch (e) {
+    console.error('Failed to update manifest category:', e)
+  }
+
+  return imports[importIndex]
 }
 
 export async function writeManifest(manifest: ScriptManifest): Promise<string> {
@@ -351,7 +377,8 @@ msg_info "Please check the repository README for additional setup instructions."
   }
 }
 
-export const CATEGORIES = [
+// Built-in categories (matching PVEScriptsLocal)
+export const BUILT_IN_CATEGORIES = [
   { id: 0, name: 'Proxmox VE Tools' },
   { id: 1, name: 'Databases' },
   { id: 2, name: 'Docker' },
@@ -368,3 +395,67 @@ export const CATEGORIES = [
   { id: 13, name: 'Server' },
   { id: 14, name: 'Custom' },
 ] as const
+
+// Custom categories file
+const CUSTOM_CATEGORIES_FILE = join(CUSTOMISER_PATH, 'data', 'categories.json')
+
+export interface Category {
+  id: number
+  name: string
+  isCustom?: boolean
+}
+
+export async function loadCustomCategories(): Promise<Category[]> {
+  try {
+    const data = await readFile(CUSTOM_CATEGORIES_FILE, 'utf-8')
+    return JSON.parse(data)
+  } catch {
+    return []
+  }
+}
+
+export async function saveCustomCategories(categories: Category[]): Promise<void> {
+  const dataPath = join(CUSTOMISER_PATH, 'data')
+  try {
+    await access(dataPath, constants.W_OK)
+  } catch {
+    await mkdir(dataPath, { recursive: true })
+  }
+  await writeFile(CUSTOM_CATEGORIES_FILE, JSON.stringify(categories, null, 2))
+}
+
+export async function addCustomCategory(name: string): Promise<Category> {
+  const customCategories = await loadCustomCategories()
+  const allCategories = [...BUILT_IN_CATEGORIES, ...customCategories]
+
+  // Find next available ID (starting from 100 for custom categories)
+  const maxId = Math.max(100, ...allCategories.map(c => c.id))
+  const newCategory: Category = {
+    id: maxId + 1,
+    name,
+    isCustom: true,
+  }
+
+  customCategories.push(newCategory)
+  await saveCustomCategories(customCategories)
+  return newCategory
+}
+
+export async function deleteCustomCategory(id: number): Promise<boolean> {
+  const customCategories = await loadCustomCategories()
+  const filtered = customCategories.filter(c => c.id !== id)
+  if (filtered.length === customCategories.length) return false
+  await saveCustomCategories(filtered)
+  return true
+}
+
+export async function getAllCategories(): Promise<Category[]> {
+  const customCategories = await loadCustomCategories()
+  return [
+    ...BUILT_IN_CATEGORIES.map(c => ({ ...c, isCustom: false })),
+    ...customCategories.map(c => ({ ...c, isCustom: true })),
+  ]
+}
+
+// Keep for backward compatibility
+export const CATEGORIES = BUILT_IN_CATEGORIES

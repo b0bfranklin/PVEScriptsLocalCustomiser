@@ -8,7 +8,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Settings, Trash2, RefreshCw, Loader2, ExternalLink, Clock, Github, Package, AlertCircle } from 'lucide-react'
+import { Settings, Trash2, RefreshCw, Loader2, ExternalLink, Clock, Github, Package, AlertCircle, FolderOpen, Check } from 'lucide-react'
 
 interface ImportedScript {
   slug: string
@@ -17,17 +17,40 @@ interface ImportedScript {
   sourceType: 'github' | 'community-scripts' | 'selfhst'
   importedAt: string
   category?: string
+  categoryId?: number
+}
+
+interface Category {
+  id: number
+  name: string
+  isCustom?: boolean
 }
 
 export default function ImportedScripts() {
   const [scripts, setScripts] = useState<ImportedScript[]>([])
+  const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
   const [updating, setUpdating] = useState<string | null>(null)
   const [deleting, setDeleting] = useState<string | null>(null)
+  const [changingCategory, setChangingCategory] = useState<string | null>(null)
+  const [categorySuccess, setCategorySuccess] = useState<string | null>(null)
 
   useEffect(() => {
     fetchImports()
+    loadCategories()
   }, [])
+
+  const loadCategories = async () => {
+    try {
+      const res = await fetch('/api/categories')
+      const data = await res.json()
+      if (data.success) {
+        setCategories(data.data)
+      }
+    } catch (error) {
+      console.error('Failed to load categories:', error)
+    }
+  }
 
   const fetchImports = async () => {
     setLoading(true)
@@ -66,6 +89,33 @@ export default function ImportedScripts() {
     } finally {
       setDeleting(null)
     }
+  }
+
+  const handleCategoryChange = async (slug: string, categoryId: number) => {
+    setChangingCategory(slug)
+    try {
+      const res = await fetch(`/api/imports/${slug}/category`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ categoryId }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        setCategorySuccess(slug)
+        await fetchImports()
+        setTimeout(() => setCategorySuccess(null), 2000)
+      }
+    } catch (error) {
+      console.error('Failed to change category:', error)
+    } finally {
+      setChangingCategory(null)
+    }
+  }
+
+  const getCategoryName = (categoryId?: number): string => {
+    if (categoryId === undefined) return 'Custom'
+    const cat = categories.find(c => c.id === categoryId)
+    return cat?.name || 'Custom'
   }
 
   const formatDate = (dateString: string) => {
@@ -142,7 +192,7 @@ export default function ImportedScripts() {
                     {getSourceIcon(script.sourceType)}
                     <h3 className="font-medium text-white">{script.name || script.slug}</h3>
                   </div>
-                  <div className="flex items-center gap-4 mt-2 text-sm text-slate-400">
+                  <div className="flex items-center gap-4 mt-2 text-sm text-slate-400 flex-wrap">
                     <span className="flex items-center gap-1">
                       <Clock className="h-3 w-3" />
                       {formatDate(script.importedAt)}
@@ -157,6 +207,39 @@ export default function ImportedScripts() {
                         <ExternalLink className="h-3 w-3 flex-shrink-0" />
                         <span className="truncate">{script.source.replace('https://github.com/', '')}</span>
                       </a>
+                    )}
+                  </div>
+                  {/* Category Selector */}
+                  <div className="flex items-center gap-2 mt-3">
+                    <FolderOpen className="h-3 w-3 text-slate-500" />
+                    <select
+                      value={script.categoryId ?? 14}
+                      onChange={(e) => handleCategoryChange(script.slug, parseInt(e.target.value))}
+                      disabled={changingCategory === script.slug}
+                      className="text-xs px-2 py-1 bg-slate-800 border border-slate-600 rounded text-slate-300 focus:outline-none focus:ring-1 focus:ring-green-500"
+                    >
+                      <optgroup label="Built-in Categories">
+                        {categories.filter(c => !c.isCustom).map((cat) => (
+                          <option key={cat.id} value={cat.id}>
+                            {cat.name}
+                          </option>
+                        ))}
+                      </optgroup>
+                      {categories.some(c => c.isCustom) && (
+                        <optgroup label="Custom Categories">
+                          {categories.filter(c => c.isCustom).map((cat) => (
+                            <option key={cat.id} value={cat.id}>
+                              {cat.name}
+                            </option>
+                          ))}
+                        </optgroup>
+                      )}
+                    </select>
+                    {changingCategory === script.slug && (
+                      <Loader2 className="h-3 w-3 animate-spin text-slate-400" />
+                    )}
+                    {categorySuccess === script.slug && (
+                      <Check className="h-3 w-3 text-green-400" />
                     )}
                   </div>
                 </div>
