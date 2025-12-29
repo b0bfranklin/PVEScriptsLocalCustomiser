@@ -29,22 +29,53 @@ interface ImportResult {
   message: string
 }
 
+// Proxy icon URL through our cache
+const getProxiedIconUrl = (url: string): string => {
+  if (!url || url.startsWith('/api/icons/')) return url
+  try {
+    const parsed = new URL(url)
+    return `/api/icons/${parsed.protocol.replace(':', '')}/${parsed.host}${parsed.pathname}`
+  } catch {
+    return url
+  }
+}
+
+// Get GitHub avatar from repo URL
+const getGithubAvatarUrl = (repoUrl: string): string => {
+  const match = repoUrl.match(/github\.com\/([^/]+)/)
+  if (match) {
+    return `/api/icons/https/github.com/${match[1]}.png?size=80`
+  }
+  return ''
+}
+
 export default function SelfhstBrowser({ onImportComplete }: Props) {
   const [apps, setApps] = useState<App[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
   const [importing, setImporting] = useState<string | null>(null)
   const [result, setResult] = useState<ImportResult | null>(null)
   const [sortBy, setSortBy] = useState<'stars' | 'name'>('stars')
 
+  // Debounce search for API queries
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchTerm)
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [searchTerm])
+
   useEffect(() => {
     fetchApps()
-  }, [])
+  }, [debouncedSearch])
 
   const fetchApps = async () => {
     setLoading(true)
     try {
-      const response = await fetch('/api/sources/selfhst')
+      const params = new URLSearchParams()
+      if (debouncedSearch) params.set('q', debouncedSearch)
+      const response = await fetch(`/api/sources/selfhst?${params}`)
       const data = await response.json()
       setApps(data.apps || [])
     } catch (error) {
@@ -89,23 +120,41 @@ export default function SelfhstBrowser({ onImportComplete }: Props) {
     }
   }
 
-  const filteredApps = apps
-    .filter((app) =>
-      app.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      app.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      app.tags?.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()))
-    )
-    .sort((a, b) => {
-      if (sortBy === 'stars') {
-        return (b.stars || 0) - (a.stars || 0)
-      }
-      return a.name.localeCompare(b.name)
-    })
+  // Sort apps (filtering is now done server-side)
+  const sortedApps = [...apps].sort((a, b) => {
+    if (sortBy === 'stars') {
+      return (b.stars || 0) - (a.stars || 0)
+    }
+    return a.name.localeCompare(b.name)
+  })
 
   const formatStars = (stars?: number) => {
     if (!stars) return '0'
     if (stars >= 1000) return `${(stars / 1000).toFixed(1)}k`
     return stars.toString()
+  }
+
+  // App icon component with fallback
+  const AppIcon = ({ app }: { app: App }) => {
+    const [imgError, setImgError] = useState(false)
+    const iconUrl = app.icon ? getProxiedIconUrl(app.icon) : app.repo ? getGithubAvatarUrl(app.repo) : null
+
+    if (!iconUrl || imgError) {
+      return (
+        <div className="w-10 h-10 rounded bg-slate-800 flex items-center justify-center flex-shrink-0">
+          <Globe className="h-5 w-5 text-slate-500" />
+        </div>
+      )
+    }
+
+    return (
+      <img
+        src={iconUrl}
+        alt=""
+        className="w-10 h-10 rounded object-contain bg-slate-800 p-1 flex-shrink-0"
+        onError={() => setImgError(true)}
+      />
+    )
   }
 
   return (
@@ -184,26 +233,13 @@ export default function SelfhstBrowser({ onImportComplete }: Props) {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-[600px] overflow-y-auto pr-2">
-          {filteredApps.slice(0, 100).map((app) => (
+          {sortedApps.slice(0, 100).map((app) => (
             <div
               key={app.name}
               className="bg-slate-900/50 border border-slate-700 rounded-lg p-4 hover:border-blue-500/50 transition-colors"
             >
               <div className="flex items-start gap-3">
-                {app.icon ? (
-                  <img
-                    src={app.icon}
-                    alt=""
-                    className="w-10 h-10 rounded object-contain bg-slate-800 p-1"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).style.display = 'none'
-                    }}
-                  />
-                ) : (
-                  <div className="w-10 h-10 rounded bg-slate-800 flex items-center justify-center">
-                    <Globe className="h-5 w-5 text-slate-500" />
-                  </div>
-                )}
+                <AppIcon app={app} />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <h3 className="font-medium text-white truncate">{app.name}</h3>
@@ -267,13 +303,13 @@ export default function SelfhstBrowser({ onImportComplete }: Props) {
         </div>
       )}
 
-      {!loading && filteredApps.length === 0 && (
+      {!loading && sortedApps.length === 0 && (
         <div className="text-center py-12 text-slate-400">
           {searchTerm ? 'No apps match your search' : 'No apps available'}
         </div>
       )}
 
-      {!loading && filteredApps.length > 100 && (
+      {!loading && sortedApps.length > 100 && (
         <p className="text-center text-slate-500 text-sm">
           Showing first 100 results. Refine your search to see more.
         </p>

@@ -210,6 +210,7 @@ export async function POST(request: NextRequest) {
       sourceType: 'github',
       importedAt: new Date().toISOString(),
       category: category?.name,
+      categoryId,
       manifestPath,
     })
 

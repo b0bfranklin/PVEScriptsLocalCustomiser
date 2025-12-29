@@ -156,6 +156,12 @@ export async function updateImportCategory(slug: string, categoryId: number): Pr
 
 export async function writeManifest(manifest: ScriptManifest): Promise<string> {
   const jsonPath = await getJsonPath()
+  // Ensure directory exists
+  try {
+    await access(jsonPath, constants.W_OK)
+  } catch {
+    await mkdir(jsonPath, { recursive: true })
+  }
   const filePath = join(jsonPath, `${manifest.slug}.json`)
   await writeFile(filePath, JSON.stringify(manifest, null, 2))
   return filePath

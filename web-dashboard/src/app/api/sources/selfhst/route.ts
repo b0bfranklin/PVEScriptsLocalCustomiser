@@ -6,7 +6,7 @@
  * License: MIT
  */
 
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 
 interface SelfhstApp {
   name: string
@@ -19,33 +19,50 @@ interface SelfhstApp {
   license?: string
 }
 
+// Cache for all files list
+let cachedFilesList: { name: string; download_url: string }[] | null = null
+let cacheTime = 0
+const CACHE_TTL = 3600000 // 1 hour
+
 // Fetch apps from awesome-selfhosted GitHub API
-async function fetchAwesomeSelfhosted(): Promise<SelfhstApp[]> {
+async function fetchAwesomeSelfhosted(searchQuery?: string): Promise<SelfhstApp[]> {
   const apps: SelfhstApp[] = []
 
   try {
-    // Get list of YAML files in the software directory
-    const listResponse = await fetch(
-      'https://api.github.com/repos/awesome-selfhosted/awesome-selfhosted-data/contents/software',
-      {
-        headers: {
-          Accept: 'application/vnd.github.v3+json',
-          'User-Agent': 'PVEScriptsLocal-Customiser',
-        },
-        next: { revalidate: 3600 },
-      }
-    )
+    // Get list of YAML files in the software directory (cached)
+    if (!cachedFilesList || Date.now() - cacheTime > CACHE_TTL) {
+      const listResponse = await fetch(
+        'https://api.github.com/repos/awesome-selfhosted/awesome-selfhosted-data/contents/software',
+        {
+          headers: {
+            Accept: 'application/vnd.github.v3+json',
+            'User-Agent': 'PVEScriptsLocal-Customiser',
+          },
+          next: { revalidate: 3600 },
+        }
+      )
 
-    if (!listResponse.ok) {
-      throw new Error(`GitHub API error: ${listResponse.status}`)
+      if (!listResponse.ok) {
+        throw new Error(`GitHub API error: ${listResponse.status}`)
+      }
+
+      cachedFilesList = await listResponse.json()
+      cacheTime = Date.now()
     }
 
-    const files = await listResponse.json()
+    // Filter YAML files
+    let yamlFiles = cachedFilesList!.filter((f) => f.name.endsWith('.yml'))
 
-    // Filter YAML files and get a reasonable sample (first 200 alphabetically)
-    const yamlFiles = files
-      .filter((f: { name: string }) => f.name.endsWith('.yml'))
-      .slice(0, 200)
+    // If search query, filter by filename first (fast pre-filter)
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase()
+      yamlFiles = yamlFiles.filter((f) =>
+        f.name.toLowerCase().includes(query)
+      )
+    }
+
+    // Limit to 200 files to fetch
+    yamlFiles = yamlFiles.slice(0, 200)
 
     // Fetch each YAML file and parse it (in batches to avoid rate limiting)
     const batchSize = 50
@@ -85,7 +102,8 @@ async function fetchAwesomeSelfhosted(): Promise<SelfhstApp[]> {
       })
 
       const batchResults = await Promise.all(batchPromises)
-      apps.push(...batchResults.filter((app): app is SelfhstApp => app !== null))
+      const validApps = batchResults.filter((app) => app !== null) as SelfhstApp[]
+      apps.push(...validApps)
     }
 
     return apps
@@ -124,21 +142,45 @@ const fallbackApps: SelfhstApp[] = [
   { name: 'Owncloud', description: 'File hosting and sharing', repo: 'https://github.com/owncloud/core', tags: ['file-sharing'], stars: 8200 },
 ]
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    // Try to fetch from awesome-selfhosted
-    let apps = await fetchAwesomeSelfhosted()
+    const searchParams = request.nextUrl.searchParams
+    const query = searchParams.get('q') || ''
 
-    // If we got less than 10 apps, use fallback
-    if (apps.length < 10) {
+    // Try to fetch from awesome-selfhosted
+    let apps = await fetchAwesomeSelfhosted(query)
+
+    // If we got less than 10 apps and no search query, use fallback
+    if (apps.length < 10 && !query) {
       console.log('Using fallback data for selfhosted apps')
       apps = fallbackApps
+    }
+
+    // If search query, also filter the results by name/description/tags
+    if (query) {
+      const q = query.toLowerCase()
+      apps = apps.filter(
+        (app) =>
+          app.name.toLowerCase().includes(q) ||
+          app.description?.toLowerCase().includes(q) ||
+          app.tags?.some((tag) => tag.toLowerCase().includes(q))
+      )
+
+      // Also search fallback apps if no results from API
+      if (apps.length === 0) {
+        apps = fallbackApps.filter(
+          (app) =>
+            app.name.toLowerCase().includes(q) ||
+            app.description?.toLowerCase().includes(q) ||
+            app.tags?.some((tag) => tag.toLowerCase().includes(q))
+        )
+      }
     }
 
     // Sort alphabetically by name
     apps.sort((a, b) => a.name.localeCompare(b.name))
 
-    return NextResponse.json({ apps, count: apps.length })
+    return NextResponse.json({ apps, count: apps.length, query })
   } catch (error) {
     console.error('Failed to fetch selfhosted apps:', error)
     return NextResponse.json({ apps: fallbackApps, count: fallbackApps.length })
