@@ -76,8 +76,10 @@ fi
 
 echo ""
 
-# Pull updates
+# Clean up any conflicting files and pull updates
 msg_info "Pulling updates..."
+git checkout -- . 2>/dev/null || true
+git clean -fd web-dashboard/package-lock.json 2>/dev/null || true
 git pull origin "$BRANCH"
 
 # Rebuild dashboard
