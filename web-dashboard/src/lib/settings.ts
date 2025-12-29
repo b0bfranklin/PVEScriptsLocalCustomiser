@@ -31,6 +31,8 @@ export interface GitCredential {
 
 export interface Settings {
   autoCheckUpdates: boolean
+  autoApplyUpdates: boolean
+  backupBeforeUpdate: boolean
   updateCheckInterval: number // hours
   lastUpdateCheck?: string
   defaultCredentialId?: string
@@ -38,6 +40,8 @@ export interface Settings {
 
 const defaultSettings: Settings = {
   autoCheckUpdates: true,
+  autoApplyUpdates: false,
+  backupBeforeUpdate: true,
   updateCheckInterval: 24,
 }
 

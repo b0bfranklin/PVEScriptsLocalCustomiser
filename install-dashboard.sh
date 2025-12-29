@@ -167,6 +167,12 @@ else
     msg_info "Patch script not found, skipping UI integration"
 fi
 
+# Create global update-dashboard command
+msg_info "Installing update-dashboard command..."
+chmod +x "${INSTALL_DIR}/update-dashboard.sh"
+ln -sf "${INSTALL_DIR}/update-dashboard.sh" /usr/local/bin/update-dashboard
+msg_ok "Installed: update-dashboard"
+
 msg_header "Installation Complete!"
 
 # Get IP address
@@ -175,6 +181,7 @@ IP_ADDR=$(hostname -I 2>/dev/null | awk '{print $1}' || echo "localhost")
 echo -e "${GN}Dashboard URL:${CL} http://${IP_ADDR}:${DASHBOARD_PORT}"
 echo ""
 echo -e "${YW}Useful commands:${CL}"
+echo "  Update:       update-dashboard"
 echo "  View logs:    journalctl -u ${SERVICE_NAME} -f"
 echo "  Restart:      systemctl restart ${SERVICE_NAME}"
 echo "  Stop:         systemctl stop ${SERVICE_NAME}"

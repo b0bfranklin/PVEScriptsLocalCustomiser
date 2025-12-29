@@ -8,6 +8,7 @@
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
+import UpdateBanner from '@/components/UpdateBanner'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -28,6 +29,7 @@ export default function RootLayout({
     <html lang="en">
       <body className={inter.className}>
         <div className="min-h-screen bg-gradient-to-b from-slate-900 to-slate-800">
+          <UpdateBanner />
           {children}
         </div>
       </body>

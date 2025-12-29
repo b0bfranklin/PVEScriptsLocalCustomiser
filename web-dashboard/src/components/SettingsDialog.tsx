@@ -22,6 +22,10 @@ import {
   AlertCircle,
   Download,
   RefreshCw,
+  Upload,
+  Archive,
+  ToggleLeft,
+  ToggleRight,
 } from 'lucide-react'
 
 interface Credential {
@@ -74,6 +78,12 @@ export default function SettingsDialog({ isOpen, onClose }: SettingsDialogProps)
   const [checkingUpdate, setCheckingUpdate] = useState(false)
   const [applyingUpdate, setApplyingUpdate] = useState(false)
 
+  // Settings state
+  const [autoApplyUpdates, setAutoApplyUpdates] = useState(false)
+  const [backupBeforeUpdate, setBackupBeforeUpdate] = useState(true)
+  const [backupLoading, setBackupLoading] = useState(false)
+  const [restoreLoading, setRestoreLoading] = useState(false)
+
   // New credential form
   const [showNewForm, setShowNewForm] = useState(false)
   const [newCred, setNewCred] = useState<{
@@ -96,8 +106,102 @@ export default function SettingsDialog({ isOpen, onClose }: SettingsDialogProps)
   useEffect(() => {
     if (isOpen) {
       loadCredentials()
+      loadSettingsData()
     }
   }, [isOpen])
+
+  const loadSettingsData = async () => {
+    try {
+      const res = await fetch('/api/settings')
+      const data = await res.json()
+      if (data.success) {
+        setAutoApplyUpdates(data.data.autoApplyUpdates || false)
+        setBackupBeforeUpdate(data.data.backupBeforeUpdate ?? true)
+      }
+    } catch (e) {
+      console.error('Failed to load settings:', e)
+    }
+  }
+
+  const saveSettingsData = async (updates: Record<string, boolean>) => {
+    try {
+      const res = await fetch('/api/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates),
+      })
+      const data = await res.json()
+      if (data.success) {
+        setSuccess('Settings saved')
+        setTimeout(() => setSuccess(null), 2000)
+      }
+    } catch (e) {
+      setError('Failed to save settings')
+    }
+  }
+
+  const handleBackup = async () => {
+    setBackupLoading(true)
+    setError(null)
+    try {
+      const res = await fetch('/api/system/backup')
+      if (res.ok) {
+        const blob = await res.blob()
+        const url = window.URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `pvescripts-backup-${new Date().toISOString().split('T')[0]}.json`
+        document.body.appendChild(a)
+        a.click()
+        window.URL.revokeObjectURL(url)
+        document.body.removeChild(a)
+        setSuccess('Backup downloaded')
+        setTimeout(() => setSuccess(null), 2000)
+      } else {
+        setError('Backup failed')
+      }
+    } catch (e) {
+      setError('Backup failed')
+    } finally {
+      setBackupLoading(false)
+    }
+  }
+
+  const handleRestore = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    if (!confirm('This will overwrite your current imports and settings. Continue?')) {
+      event.target.value = ''
+      return
+    }
+
+    setRestoreLoading(true)
+    setError(null)
+    try {
+      const content = await file.text()
+      const backup = JSON.parse(content)
+
+      const res = await fetch('/api/system/backup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(backup),
+      })
+      const data = await res.json()
+
+      if (data.success) {
+        setSuccess(data.message)
+        setTimeout(() => setSuccess(null), 3000)
+      } else {
+        setError(data.message)
+      }
+    } catch (e) {
+      setError('Invalid backup file')
+    } finally {
+      setRestoreLoading(false)
+      event.target.value = ''
+    }
+  }
 
   const loadCredentials = async () => {
     setLoading(true)
@@ -577,6 +681,95 @@ export default function SettingsDialog({ isOpen, onClose }: SettingsDialogProps)
                       </button>
                     </div>
                   )}
+                </div>
+              </div>
+
+              {/* Update Settings */}
+              <div className="space-y-4">
+                <h3 className="text-white font-medium">Update Settings</h3>
+                <div className="space-y-3">
+                  <label className="flex items-center justify-between p-3 bg-slate-700/30 rounded-lg border border-slate-600 cursor-pointer hover:border-slate-500 transition-colors">
+                    <div>
+                      <p className="text-white text-sm">Auto-apply updates</p>
+                      <p className="text-slate-400 text-xs">Automatically install updates when available</p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        const newValue = !autoApplyUpdates
+                        setAutoApplyUpdates(newValue)
+                        saveSettingsData({ autoApplyUpdates: newValue })
+                      }}
+                      className="text-green-500"
+                    >
+                      {autoApplyUpdates ? (
+                        <ToggleRight className="h-8 w-8" />
+                      ) : (
+                        <ToggleLeft className="h-8 w-8 text-slate-500" />
+                      )}
+                    </button>
+                  </label>
+
+                  <label className="flex items-center justify-between p-3 bg-slate-700/30 rounded-lg border border-slate-600 cursor-pointer hover:border-slate-500 transition-colors">
+                    <div>
+                      <p className="text-white text-sm">Backup before update</p>
+                      <p className="text-slate-400 text-xs">Create automatic backup before applying updates</p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        const newValue = !backupBeforeUpdate
+                        setBackupBeforeUpdate(newValue)
+                        saveSettingsData({ backupBeforeUpdate: newValue })
+                      }}
+                      className="text-green-500"
+                    >
+                      {backupBeforeUpdate ? (
+                        <ToggleRight className="h-8 w-8" />
+                      ) : (
+                        <ToggleLeft className="h-8 w-8 text-slate-500" />
+                      )}
+                    </button>
+                  </label>
+                </div>
+              </div>
+
+              {/* Backup & Restore */}
+              <div className="space-y-4">
+                <h3 className="text-white font-medium flex items-center gap-2">
+                  <Archive className="h-4 w-4" />
+                  Backup & Restore
+                </h3>
+                <p className="text-slate-400 text-sm">
+                  Export your imports and settings, or restore from a previous backup.
+                </p>
+                <div className="flex gap-3">
+                  <button
+                    onClick={handleBackup}
+                    disabled={backupLoading}
+                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg text-sm transition-colors"
+                  >
+                    {backupLoading ? (
+                      <RefreshCw className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Download className="h-4 w-4" />
+                    )}
+                    Export Backup
+                  </button>
+
+                  <label className="flex items-center gap-2 px-4 py-2 bg-slate-600 hover:bg-slate-500 text-white rounded-lg text-sm transition-colors cursor-pointer">
+                    {restoreLoading ? (
+                      <RefreshCw className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Upload className="h-4 w-4" />
+                    )}
+                    Import Backup
+                    <input
+                      type="file"
+                      accept=".json"
+                      onChange={handleRestore}
+                      disabled={restoreLoading}
+                      className="hidden"
+                    />
+                  </label>
                 </div>
               </div>
 
