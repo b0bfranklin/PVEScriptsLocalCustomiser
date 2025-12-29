@@ -7,8 +7,8 @@
 
 'use client'
 
-import { useState } from 'react'
-import { Github, Download, Loader2, CheckCircle, AlertCircle, ExternalLink } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { Github, Download, Loader2, CheckCircle, AlertCircle, Plus, X } from 'lucide-react'
 
 interface Props {
   onImportComplete: () => void
@@ -19,6 +19,13 @@ interface ImportResult {
   message: string
   slug?: string
   name?: string
+  requiresAuth?: boolean
+}
+
+interface Category {
+  id: number
+  name: string
+  isCustom?: boolean
 }
 
 export default function GitHubImporter({ onImportComplete }: Props) {
@@ -26,24 +33,50 @@ export default function GitHubImporter({ onImportComplete }: Props) {
   const [category, setCategory] = useState('14')
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<ImportResult | null>(null)
+  const [categories, setCategories] = useState<Category[]>([])
+  const [showNewCategory, setShowNewCategory] = useState(false)
+  const [newCategoryName, setNewCategoryName] = useState('')
+  const [addingCategory, setAddingCategory] = useState(false)
 
-  const categories = [
-    { id: '1', name: 'Automation' },
-    { id: '2', name: 'Database' },
-    { id: '3', name: 'Development' },
-    { id: '4', name: 'Docker' },
-    { id: '5', name: 'File Sharing' },
-    { id: '6', name: 'Home Automation' },
-    { id: '7', name: 'Media' },
-    { id: '8', name: 'Monitoring' },
-    { id: '9', name: 'Networking' },
-    { id: '10', name: 'Security' },
-    { id: '11', name: 'Storage' },
-    { id: '12', name: 'Utilities' },
-    { id: '13', name: 'Virtualization' },
-    { id: '14', name: 'Custom' },
-    { id: '15', name: 'Proxmox' },
-  ]
+  useEffect(() => {
+    loadCategories()
+  }, [])
+
+  const loadCategories = async () => {
+    try {
+      const res = await fetch('/api/categories')
+      const data = await res.json()
+      if (data.success) {
+        setCategories(data.data)
+      }
+    } catch (error) {
+      console.error('Failed to load categories:', error)
+    }
+  }
+
+  const handleAddCategory = async () => {
+    if (!newCategoryName.trim()) return
+
+    setAddingCategory(true)
+    try {
+      const res = await fetch('/api/categories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newCategoryName.trim() }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        await loadCategories()
+        setCategory(String(data.data.id))
+        setNewCategoryName('')
+        setShowNewCategory(false)
+      }
+    } catch (error) {
+      console.error('Failed to add category:', error)
+    } finally {
+      setAddingCategory(false)
+    }
+  }
 
   const handleImport = async () => {
     if (!url.trim()) return
@@ -106,18 +139,58 @@ export default function GitHubImporter({ onImportComplete }: Props) {
           <label htmlFor="category" className="block text-sm font-medium text-slate-300 mb-2">
             Category
           </label>
-          <select
-            id="category"
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-            className="w-full px-4 py-3 bg-slate-900 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-          >
-            {categories.map((cat) => (
-              <option key={cat.id} value={cat.id}>
-                {cat.name}
-              </option>
-            ))}
-          </select>
+          <div className="flex gap-2">
+            <select
+              id="category"
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              className="flex-1 px-4 py-3 bg-slate-900 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+            >
+              <optgroup label="Built-in Categories">
+                {categories.filter(c => !c.isCustom).map((cat) => (
+                  <option key={cat.id} value={cat.id}>
+                    {cat.name}
+                  </option>
+                ))}
+              </optgroup>
+              {categories.some(c => c.isCustom) && (
+                <optgroup label="Custom Categories">
+                  {categories.filter(c => c.isCustom).map((cat) => (
+                    <option key={cat.id} value={cat.id}>
+                      {cat.name}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+            </select>
+            <button
+              onClick={() => setShowNewCategory(!showNewCategory)}
+              className="px-4 py-3 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors"
+              title="Add custom category"
+            >
+              {showNewCategory ? <X className="h-5 w-5" /> : <Plus className="h-5 w-5" />}
+            </button>
+          </div>
+
+          {showNewCategory && (
+            <div className="mt-3 flex gap-2">
+              <input
+                type="text"
+                value={newCategoryName}
+                onChange={(e) => setNewCategoryName(e.target.value)}
+                placeholder="e.g., AI/LLM, Security Tools"
+                className="flex-1 px-4 py-2 bg-slate-900 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-green-500"
+                onKeyDown={(e) => e.key === 'Enter' && handleAddCategory()}
+              />
+              <button
+                onClick={handleAddCategory}
+                disabled={!newCategoryName.trim() || addingCategory}
+                className="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-slate-600 text-white rounded-lg transition-colors"
+              >
+                {addingCategory ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Add'}
+              </button>
+            </div>
+          )}
         </div>
 
         <button
@@ -156,7 +229,12 @@ export default function GitHubImporter({ onImportComplete }: Props) {
             </p>
             {result.success && result.name && (
               <p className="text-slate-400 text-sm mt-1">
-                Script "{result.name}" is now available in PVEScriptsLocal
+                Script "{result.name}" is now available in My Imports
+              </p>
+            )}
+            {result.requiresAuth && (
+              <p className="text-yellow-400 text-sm mt-1">
+                This appears to be a private repo. Add credentials in Settings to import.
               </p>
             )}
           </div>

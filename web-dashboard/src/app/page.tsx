@@ -8,18 +8,17 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Github, Globe, Package, Settings as SettingsIcon, ExternalLink, RefreshCw, Cog } from 'lucide-react'
+import { Github, Globe, Package, FolderOpen, ExternalLink, Cog, Download } from 'lucide-react'
 import GitHubImporter from '@/components/GitHubImporter'
-import CommunityScriptsBrowser from '@/components/CommunityScriptsBrowser'
 import SelfhstBrowser from '@/components/SelfhstBrowser'
 import ImportedScripts from '@/components/ImportedScripts'
 import UpdateBanner from '@/components/UpdateBanner'
 import SettingsDialog from '@/components/SettingsDialog'
 
-type Tab = 'github' | 'community' | 'selfhst' | 'imported'
+type Tab = 'github' | 'selfhst' | 'imported'
 
 export default function Home() {
-  const [activeTab, setActiveTab] = useState<Tab>('community')
+  const [activeTab, setActiveTab] = useState<Tab>('selfhst')
   const [refreshKey, setRefreshKey] = useState(0)
   const [pveScriptsUrl, setPveScriptsUrl] = useState('')
   const [showSettings, setShowSettings] = useState(false)
@@ -31,10 +30,9 @@ export default function Home() {
   }, [])
 
   const tabs = [
-    { id: 'community' as Tab, label: 'Community Scripts', icon: Package, color: 'text-orange-500' },
     { id: 'selfhst' as Tab, label: 'selfh.st Apps', icon: Globe, color: 'text-blue-500' },
     { id: 'github' as Tab, label: 'GitHub Import', icon: Github, color: 'text-purple-500' },
-    { id: 'imported' as Tab, label: 'My Imports', icon: SettingsIcon, color: 'text-green-500' },
+    { id: 'imported' as Tab, label: 'My Imports', icon: FolderOpen, color: 'text-green-500' },
   ]
 
   const handleImportComplete = () => {
@@ -103,9 +101,6 @@ export default function Home() {
       <div className="bg-slate-800/50 rounded-xl p-6 border border-slate-700">
         {activeTab === 'github' && (
           <GitHubImporter onImportComplete={handleImportComplete} />
-        )}
-        {activeTab === 'community' && (
-          <CommunityScriptsBrowser onImportComplete={handleImportComplete} />
         )}
         {activeTab === 'selfhst' && (
           <SelfhstBrowser onImportComplete={handleImportComplete} />

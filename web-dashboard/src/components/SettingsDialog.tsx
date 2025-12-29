@@ -20,6 +20,8 @@ import {
   EyeOff,
   Check,
   AlertCircle,
+  Download,
+  RefreshCw,
 } from 'lucide-react'
 
 interface Credential {
@@ -49,12 +51,28 @@ const providerOptions = [
   { value: 'custom' as Provider, label: 'Custom/Self-hosted', icon: Globe },
 ]
 
+interface UpdateInfo {
+  currentVersion: string
+  currentCommit: string
+  latestCommit: string
+  branch: string
+  updateAvailable: boolean
+  commitsBehind: number
+  latestMessage: string
+  checkedAt: string
+}
+
 export default function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
   const [activeTab, setActiveTab] = useState<'credentials' | 'general'>('credentials')
   const [credentials, setCredentials] = useState<Credential[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
+
+  // Update state
+  const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null)
+  const [checkingUpdate, setCheckingUpdate] = useState(false)
+  const [applyingUpdate, setApplyingUpdate] = useState(false)
 
   // New credential form
   const [showNewForm, setShowNewForm] = useState(false)
@@ -96,6 +114,53 @@ export default function SettingsDialog({ isOpen, onClose }: SettingsDialogProps)
       setError('Failed to load credentials')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const checkForUpdates = async () => {
+    setCheckingUpdate(true)
+    setError(null)
+    try {
+      const res = await fetch('/api/system/update-check')
+      const data = await res.json()
+      if (data.success) {
+        setUpdateInfo(data.data)
+        if (!data.data.updateAvailable) {
+          setSuccess('You are running the latest version!')
+          setTimeout(() => setSuccess(null), 3000)
+        }
+      } else {
+        setError(data.message)
+      }
+    } catch (e) {
+      setError('Failed to check for updates')
+    } finally {
+      setCheckingUpdate(false)
+    }
+  }
+
+  const applyUpdate = async () => {
+    if (!confirm('This will update the dashboard and restart the service. Continue?')) {
+      return
+    }
+
+    setApplyingUpdate(true)
+    setError(null)
+    try {
+      const res = await fetch('/api/system/update-apply', { method: 'POST' })
+      const data = await res.json()
+      if (data.success) {
+        setSuccess('Update applied! The page will reload when ready...')
+        setTimeout(() => {
+          window.location.reload()
+        }, 5000)
+      } else {
+        setError(data.message)
+      }
+    } catch (e) {
+      setError('Failed to apply update')
+    } finally {
+      setApplyingUpdate(false)
     }
   }
 
@@ -415,12 +480,117 @@ export default function SettingsDialog({ isOpen, onClose }: SettingsDialogProps)
           )}
 
           {activeTab === 'general' && (
-            <div className="space-y-4">
-              <p className="text-slate-400 text-sm">General settings for the dashboard</p>
-              {/* Future general settings can go here */}
-              <div className="text-center py-8 text-slate-500">
-                <Settings className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                <p>No additional settings available</p>
+            <div className="space-y-6">
+              {/* Updates Section */}
+              <div className="space-y-4">
+                <h3 className="text-white font-medium flex items-center gap-2">
+                  <Download className="h-4 w-4" />
+                  Software Updates
+                </h3>
+
+                <div className="p-4 bg-slate-700/30 rounded-lg border border-slate-600">
+                  {updateInfo ? (
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-white">
+                            Version: <span className="text-slate-400">{updateInfo.currentVersion}</span>
+                          </p>
+                          <p className="text-sm text-slate-400">
+                            Commit: {updateInfo.currentCommit} on {updateInfo.branch}
+                          </p>
+                        </div>
+                        {updateInfo.updateAvailable ? (
+                          <span className="px-2 py-1 bg-green-600/20 text-green-400 text-xs rounded-full">
+                            Update available
+                          </span>
+                        ) : (
+                          <span className="px-2 py-1 bg-slate-600/50 text-slate-400 text-xs rounded-full">
+                            Up to date
+                          </span>
+                        )}
+                      </div>
+
+                      {updateInfo.updateAvailable && (
+                        <div className="p-3 bg-green-500/10 border border-green-500/30 rounded-lg">
+                          <p className="text-green-400 text-sm">
+                            {updateInfo.commitsBehind} commit{updateInfo.commitsBehind > 1 ? 's' : ''} behind
+                          </p>
+                          <p className="text-slate-300 text-sm mt-1">
+                            Latest: {updateInfo.latestMessage}
+                          </p>
+                        </div>
+                      )}
+
+                      <div className="flex gap-2">
+                        <button
+                          onClick={checkForUpdates}
+                          disabled={checkingUpdate || applyingUpdate}
+                          className="flex items-center gap-2 px-3 py-2 bg-slate-600 hover:bg-slate-500 disabled:opacity-50 text-white rounded-lg text-sm transition-colors"
+                        >
+                          <RefreshCw className={`h-4 w-4 ${checkingUpdate ? 'animate-spin' : ''}`} />
+                          Check Again
+                        </button>
+                        {updateInfo.updateAvailable && (
+                          <button
+                            onClick={applyUpdate}
+                            disabled={applyingUpdate || checkingUpdate}
+                            className="flex items-center gap-2 px-3 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white rounded-lg text-sm transition-colors"
+                          >
+                            {applyingUpdate ? (
+                              <>
+                                <RefreshCw className="h-4 w-4 animate-spin" />
+                                Updating...
+                              </>
+                            ) : (
+                              <>
+                                <Download className="h-4 w-4" />
+                                Apply Update
+                              </>
+                            )}
+                          </button>
+                        )}
+                      </div>
+
+                      <p className="text-xs text-slate-500">
+                        Last checked: {new Date(updateInfo.checkedAt).toLocaleString()}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="text-center py-4">
+                      <button
+                        onClick={checkForUpdates}
+                        disabled={checkingUpdate}
+                        className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white rounded-lg transition-colors mx-auto"
+                      >
+                        {checkingUpdate ? (
+                          <>
+                            <RefreshCw className="h-4 w-4 animate-spin" />
+                            Checking...
+                          </>
+                        ) : (
+                          <>
+                            <RefreshCw className="h-4 w-4" />
+                            Check for Updates
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* About Section */}
+              <div className="space-y-2">
+                <h3 className="text-white font-medium flex items-center gap-2">
+                  <Settings className="h-4 w-4" />
+                  About
+                </h3>
+                <div className="p-4 bg-slate-700/30 rounded-lg border border-slate-600 text-sm text-slate-400">
+                  <p>PVEScripts Importer Dashboard</p>
+                  <p className="mt-1">Import custom scripts into your PVEScriptsLocal installation.</p>
+                  <p className="mt-2 text-slate-500">MIT License - © 2024-2025 b0bfranklin</p>
+                </div>
               </div>
             </div>
           )}
